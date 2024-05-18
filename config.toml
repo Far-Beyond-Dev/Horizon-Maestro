@@ -1,0 +1,8 @@
+[docker]
+baseUrl = "http://localhost:2375"
+imageName = "your_image_name"
+containerName = "your_container_name"
+
+[dockerfile]
+path = "/path/to/Dockerfile"
+buildContext = "/path/to/build/context"

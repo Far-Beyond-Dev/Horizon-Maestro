@@ -14,5 +14,9 @@
   "bugs": {
     "url": "https://github.com/AstroVerse-Studios/Horizon-Maestro/issues"
   },
-  "homepage": "https://github.com/AstroVerse-Studios/Horizon-Maestro#readme"
+  "homepage": "https://github.com/AstroVerse-Studios/Horizon-Maestro#readme",
+  "dependencies": {
+    "axios": "^1.6.8",
+    "toml": "^3.0.0"
+  }
 }
