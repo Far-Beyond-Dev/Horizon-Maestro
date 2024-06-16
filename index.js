@@ -1,57 +1,59 @@
-const { exec } = require('child_process');
+const { spawn } = require('child_process');
 const axios = require('axios');
 const toml = require('toml');
 const fs = require('fs');
+const path = require('path');
 
 // Read configuration from TOML file
 const config = toml.parse(fs.readFileSync('config.toml', 'utf-8'));
 
-// Docker API base URL
-const dockerBaseUrl = config.docker.baseUrl;
-
-// Image name and container name
-const imageName = config.docker.imageName;
-const containerName = config.docker.containerName;
-
-// Local path to Dockerfile and directory containing your Dockerfile and related files
-const dockerfilePath = config.dockerfile.path;
-const buildContextPath = config.dockerfile.buildContext;
-
-// Build the Docker image
-function buildImage() {
+// Function to run npm start in Horizon-Dashboard directory
+function runNpmStart() {
   return new Promise((resolve, reject) => {
-    const buildCommand = `docker build -t ${imageName} -f ${dockerfilePath} ${buildContextPath}`;
+    const child = spawn('npm', ['run', 'start'], {
+      shell: true,
+      cwd: path.resolve(__dirname, 'Horizon-Dashboard')
+    });
 
-    exec(buildCommand, (error, stdout, stderr) => {
-      if (error) {
-        reject(error);
-      } else if (stderr) {
-        reject(new Error(stderr));
-      } else {
-        console.log(stdout);
+    child.stdout.on('data', (data) => {
+      console.log(data.toString());
+    });
+
+    child.stderr.on('data', (data) => {
+      console.error(data.toString());
+    });
+
+    child.on('exit', (code) => {
+      if (code === 0) {
         resolve();
+      } else {
+        reject(new Error(`NPM start process exited with code ${code}`));
       }
+    });
+
+    child.on('error', (err) => {
+      reject(err);
     });
   });
 }
 
-// Create container endpoint
-const createContainerEndpoint = `${dockerBaseUrl}/containers/create`;
-
-// Container configuration
-const containerConfig = {
-  Image: imageName,
-  name: containerName,
-  // Additional configuration if needed
-};
-
 // Function to create a Docker container
 async function createContainer() {
   try {
-    // Build the Docker image first
-    await buildImage();
+    // Run npm start in Horizon-Dashboard directory
+    await runNpmStart();
 
-    // Make a POST request to create the container
+    // Make a POST request to create the container (assuming previous configuration remains valid)
+    const dockerBaseUrl = config.docker.baseUrl;
+    const createContainerEndpoint = `${dockerBaseUrl}/containers/create`;
+    const imageName = config.docker.imageName;
+    const containerName = config.docker.containerName;
+    const containerConfig = {
+      Image: imageName,
+      name: containerName,
+      // Additional configuration if needed
+    };
+
     const response = await axios.post(createContainerEndpoint, containerConfig);
     
     // Check the response status
@@ -61,7 +63,7 @@ async function createContainer() {
       console.error('Failed to create container:', response.statusText);
     }
   } catch (error) {
-    console.error('Error creating container:', error.message);
+    console.error('Error:', error.message);
   }
 }
 

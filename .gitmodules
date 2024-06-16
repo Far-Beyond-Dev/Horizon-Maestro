@@ -1,0 +1,3 @@
+[submodule "Horizon-Dashboard"]
+	path = Horizon-Dashboard
+	url = https://github.com/Stars-Beyond/Horizon-Dashboard
