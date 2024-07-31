@@ -1,8 +1,11 @@
 [docker]
-baseUrl = "http://localhost:2375"
-imageName = "your_image_name"
-containerName = "your_container_name"
+base_url = "http://localhost:2375"
+image_name = "your_image_name"
+container_name = "your_container_name"
 
 [dockerfile]
 path = "/path/to/Dockerfile"
 buildContext = "/path/to/build/context"
+
+[npm]
+dashboard_path = "./Horizon-Dashboard"
