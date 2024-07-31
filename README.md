@@ -1,3 +1,4 @@
+![Horizon Maestro Splash](branding/logo-no-background.png)
 # Horizon Maestro (Rust Version)
 
 Horizon Maestro is the master control system for the Horizon Game server, now implemented in Rust for improved performance and safety. It orchestrates the deployment, management, and monitoring of game server instances, ensuring smooth operation and optimal performance of the Horizon gaming platform.
