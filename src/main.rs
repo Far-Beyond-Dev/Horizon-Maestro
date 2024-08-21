@@ -216,10 +216,134 @@ async fn deploy_remotely(host: &Host, config: &Config) -> Result<(), MaestroErro
     Ok(())
 }
 
+async fn ensure_docker_installed_remote(host: &Host) -> Result<(), MaestroError> {
+    println!("{}", format!("🐳 Checking Docker installation on {}...", host.address).blue().bold());
+
+    let ssh_command = match &host.auth_method {
+        AuthMethod::Password(password) => format!(
+            "sshpass -p '{}' ssh {}@{} 'docker --version'",
+            password, host.username, host.address
+        ),
+        AuthMethod::Key(key_path) => format!(
+            "ssh -i {} {}@{} 'docker --version'",
+            key_path, host.username, host.address
+        ),
+    };
+
+    let output = Command::new("sh")
+        .arg("-c")
+        .arg(&ssh_command)
+        .output()
+        .await
+        .map_err(|e| MaestroError(format!("Failed to check Docker on {}: {}", host.address, e)))?;
+
+    if output.status.success() {
+        let version = String::from_utf8_lossy(&output.stdout);
+        println!("{}", format!("✅ Docker is installed on {}: {}", host.address, version.trim()).green().bold());
+        Ok(())
+    } else {
+        println!("{}", format!("⚠️  Docker is not installed on {}. Attempting to install...", host.address).yellow().bold());
+        install_docker_remote(host).await
+    }
+}
+
+async fn ensure_docker_installed_local() -> Result<(), MaestroError> {
+    println!("{}", "🐳 Checking Docker installation locally...".blue().bold());
+
+    let docker_check = Command::new("docker")
+        .arg("--version")
+        .output()
+        .await;
+
+    match docker_check {
+        Ok(output) if output.status.success() => {
+            let version = String::from_utf8_lossy(&output.stdout);
+            println!("{}", format!("✅ Docker is installed locally: {}", version.trim()).green().bold());
+            Ok(())
+        },
+        _ => {
+            println!("{}", "⚠️  Docker is not installed locally. Attempting to install...".yellow().bold());
+            install_docker_local().await
+        }
+    }
+}
+
+async fn install_docker_local() -> Result<(), MaestroError> {
+    println!("{}", "📥 Downloading Docker installation script...".blue().bold());
+
+    let curl_output = Command::new("curl")
+        .arg("-fsSL")
+        .arg("https://get.docker.com")
+        .output()
+        .await
+        .map_err(|e| MaestroError(format!("Failed to download Docker installation script: {}", e)))?;
+
+    if !curl_output.status.success() {
+        return Err(MaestroError("Failed to download Docker installation script".to_string()));
+    }
+
+    let script_content = String::from_utf8_lossy(&curl_output.stdout).to_string();
+
+    println!("{}", "🚀 Running Docker installation script locally...".blue().bold());
+
+    let install_output = Command::new("sh")
+        .arg("-c")
+        .arg(&script_content)
+        .output()
+        .await
+        .map_err(|e| MaestroError(format!("Failed to run Docker installation script: {}", e)))?;
+
+    if install_output.status.success() {
+        println!("{}", "✅ Docker installed successfully on local machine".green().bold());
+        Ok(())
+    } else {
+        let error = String::from_utf8_lossy(&install_output.stderr);
+        Err(MaestroError(format!("Docker installation failed locally: {}", error)))
+    }
+}
+
+async fn install_docker_remote(host: &Host) -> Result<(), MaestroError> {
+    println!("{}", format!("📥 Installing Docker on {}...", host.address).blue().bold());
+
+    let install_command = r#"curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh"#;
+    
+    let ssh_command = match &host.auth_method {
+        AuthMethod::Password(password) => format!(
+            "sshpass -p '{}' ssh {}@{} '{}'",
+            password, host.username, host.address, install_command
+        ),
+        AuthMethod::Key(key_path) => format!(
+            "ssh -i {} {}@{} '{}'",
+            key_path, host.username, host.address, install_command
+        ),
+    };
+
+    let output = Command::new("sh")
+        .arg("-c")
+        .arg(&ssh_command)
+        .output()
+        .await
+        .map_err(|e| MaestroError(format!("Failed to install Docker on {}: {}", host.address, e)))?;
+
+    if output.status.success() {
+        println!("{}", format!("✅ Docker installed successfully on {}", host.address).green().bold());
+        Ok(())
+    } else {
+        let error = String::from_utf8_lossy(&output.stderr);
+        Err(MaestroError(format!("Docker installation failed on {}: {}", host.address, error)))
+    }
+}
+
 async fn deploy_to_host(host: &Host, config: &Config) -> Result<(), MaestroError> {
     match host.address.as_str() {
-        "localhost" => deploy_locally(config).await,
-        _ => deploy_remotely(host, config).await,
+        "localhost" => {
+            ensure_docker_installed_local().await?;
+            deploy_locally(config).await
+        },
+        _ => {
+            ensure_docker_installed_remote(host).await?;
+            deploy_remotely(host, config).await
+        },
     }
 }
 
@@ -248,12 +372,22 @@ async fn main() -> Result<(), MaestroError> {
     build_or_start_dashboard(&config).await?;
     deploy_to_all_hosts(&config).await?;
 
-    println!("{}", "📊 Summary:".cyan().bold());
+    println!("{}", "📊 Deployment Summary:".cyan().bold());
     println!("   Dashboard: http://localhost:{}", DASHBOARD_PORT);
-    println!("   Docker container: {}", config.docker.container_name);
+    println!("   Docker Image: {}", config.docker.image_name);
+    println!("   Container Name: {}", config.docker.container_name);
+    println!("   Deployed Hosts:");
+    for host in &config.deployment.hosts {
+        println!("     - {}", host.address);
+    }
+    
+    println!("\n{}", "🔍 Notes:".yellow().bold());
+    println!("   - For 'hello-world' like images, containers may exit immediately after running.");
+    println!("   - Use 'docker ps -a' to see all containers, including stopped ones.");
+    println!("   - To view container logs, use: docker logs {}", config.docker.container_name);
     
     // Keep the application running
-    println!("{}", "🔄 Application is running. Press Ctrl+C to stop.".yellow().bold());
+    println!("\n{}", "🔄 Application is running. Press Ctrl+C to stop.".yellow().bold());
     tokio::signal::ctrl_c().await.map_err(|e| MaestroError(format!("Failed to listen for Ctrl+C: {}", e)))?;
     println!("{}", "👋 Shutting down".magenta().bold());
 
