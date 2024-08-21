@@ -1,3 +1,6 @@
+![Horizon Maestro Splash](branding/logo-no-background.png)
+
+
 # Horizon Maestro
 
 Horizon Maestro is a specialized deployment tool designed to streamline the process of deploying and scaling Horizon Game server services and their dependencies. It automates the deployment of Docker containers across multiple hosts, ensuring efficient and consistent setup of game server infrastructure.
