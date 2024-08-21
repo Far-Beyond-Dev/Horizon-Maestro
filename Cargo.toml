@@ -11,3 +11,8 @@ serde_json = "1.0"
 toml = "0.5"
 reqwest = { version = "0.11", features = ["json"] }
 colored = "2.1.0"
+ssh2 = "0.9.4"
+russh = "0.45.0"
+futures = "0.3.30"
+russh-keys = "0.45.0"
+async-trait = "0.1.81"

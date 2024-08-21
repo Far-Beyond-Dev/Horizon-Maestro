@@ -1,11 +1,14 @@
-[docker]
-base_url = "http://localhost:2375"
-image_name = "your_image_name"
-container_name = "your_container_name"
-
-[dockerfile]
-path = "/path/to/Dockerfile"
-buildContext = "/path/to/build/context"
-
 [npm]
 dashboard_path = "./Horizon-Dashboard"
+
+[deployment]
+hosts = [
+  { address = "localhost", username = "tristan", auth_method = { Password = "1261" } }
+  # Uncomment and modify these lines for remote deployments:
+  # { address = "192.168.1.100", username = "user1", auth_method = { Password = "pass1" } },
+  # { address = "192.168.1.101", username = "user2", auth_method = { Key = "/path/to/ssh_key2" } }
+]
+
+[docker]
+image_name = "nginx:latest"
+container_name = "YetAnotherHelloWorld"

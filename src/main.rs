@@ -1,10 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::fs;
-use serde_derive::Deserialize;
-use reqwest;
+use serde_derive::{Deserialize, Serialize};
 use tokio::process::Command;
-use tokio::net::{TcpListener, TcpStream};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use std::error::Error;
 use std::fmt;
 use colored::*;
@@ -20,149 +17,217 @@ impl fmt::Display for MaestroError {
 
 impl Error for MaestroError {}
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 struct Config {
-    docker: DockerConfig,
     npm: NpmConfig,
+    deployment: DeploymentConfig,
+    docker: DockerConfig,
 }
 
-#[derive(Deserialize)]
-struct DockerConfig {
-    base_url: String,
-    image_name: String,
-    container_name: String,
-}
-
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 struct NpmConfig {
     dashboard_path: String,
+}
+
+#[derive(Deserialize, Serialize)]
+struct DeploymentConfig {
+    hosts: Vec<Host>,
+}
+
+#[derive(Deserialize, Serialize)]
+struct Host {
+    address: String,
+    username: String,
+    auth_method: AuthMethod,
+}
+
+#[derive(Deserialize, Serialize)]
+enum AuthMethod {
+    Password(String),
+    Key(String),
+}
+
+#[derive(Deserialize, Serialize)]
+struct DockerConfig {
+    image_name: String,
+    container_name: String,
 }
 
 const BUILT_INDICATOR: &str = ".dashboard_built";
 const DASHBOARD_PORT: u16 = 3007;
 
 async fn build_or_start_dashboard(config: &Config) -> Result<(), MaestroError> {
-  let dashboard_path = PathBuf::from(&config.npm.dashboard_path);
+    let dashboard_path = PathBuf::from(&config.npm.dashboard_path);
   
-  if !dashboard_path.exists() {
-      return Err(MaestroError(format!("Dashboard directory not found at {:?}", dashboard_path)));
-  }
+    if !dashboard_path.exists() {
+        return Err(MaestroError(format!("Dashboard directory not found at {:?}", dashboard_path)));
+    }
 
-  let built_indicator = dashboard_path.join(BUILT_INDICATOR);
+    println!("{}", "📦 Installing npm dependencies...".yellow().bold());
+    run_npm_command(&dashboard_path, &["install"]).await?;
+    println!("{}", "✅ npm dependencies installed successfully.".green().bold());
 
-  if !built_indicator.exists() {
-      println!("{}", "🏗️  Building dashboard for the first time...".yellow().bold());
-      run_npm_command(&dashboard_path, &["run", "build"]).await?;
-      fs::File::create(&built_indicator)
-          .map_err(|e| MaestroError(format!("Failed to create built indicator file: {}", e)))?;
-      println!("{}", "✅ Dashboard built successfully.".green().bold());
-  }
+    let built_indicator = dashboard_path.join(BUILT_INDICATOR);
 
-  println!("{}", "🚀 Starting dashboard preview...".cyan().bold());
-  tokio::spawn(async move {
-      if let Err(e) = run_npm_command(&dashboard_path, &["run", "preview", "--", "--port", &DASHBOARD_PORT.to_string()]).await {
-          eprintln!("{}", format!("❌ Error starting dashboard preview: {}", e).red().bold());
-      }
-  });
+    if !built_indicator.exists() {
+        println!("{}", "🏗️  Building dashboard for the first time...".yellow().bold());
+        run_npm_command(&dashboard_path, &["run", "build"]).await?;
+        fs::File::create(&built_indicator)
+            .map_err(|e| MaestroError(format!("Failed to create built indicator file: {}", e)))?;
+        println!("{}", "✅ Dashboard built successfully.".green().bold());
+    }
 
-  println!("{}", format!("🌐 Dashboard is now running at http://localhost:{}", DASHBOARD_PORT).green().bold());
-  Ok(())
+    println!("{}", "🚀 Starting dashboard preview...".cyan().bold());
+    tokio::spawn(async move {
+        if let Err(e) = run_npm_command(&dashboard_path, &["run", "preview", "--", "--port", &DASHBOARD_PORT.to_string()]).await {
+            eprintln!("{}", format!("❌ Error starting dashboard preview: {}", e).red().bold());
+        }
+    });
+
+    println!("{}", format!("🌐 Dashboard is now running at http://localhost:{}", DASHBOARD_PORT).green().bold());
+    Ok(())
 }
 
 async fn run_npm_command(path: &Path, args: &[&str]) -> Result<(), MaestroError> {
-  let mut command = Command::new("npm");
-  command.args(args)
-         .current_dir(path);
+    let mut command = Command::new("npm");
+    command.args(args)
+           .current_dir(path);
 
-  let output = command.output().await
-      .map_err(|e| MaestroError(format!("Failed to execute npm command: {}", e)))?;
+    let output = command.output().await
+        .map_err(|e| MaestroError(format!("Failed to execute npm command: {}", e)))?;
 
-  if output.status.success() {
-      Ok(())
-  } else {
-      let error = String::from_utf8_lossy(&output.stderr);
-      Err(MaestroError(format!("npm command failed: {}", error)))
-  }
-}
-
-
-async fn create_docker_container(config: &Config) -> Result<(), MaestroError> {
-    let client = reqwest::Client::new();
-    let create_container_endpoint = format!("{}/containers/create", config.docker.base_url);
-    let container_config = serde_json::json!({
-        "Image": config.docker.image_name,
-        "name": config.docker.container_name,
-    });
-
-    let response = client.post(&create_container_endpoint)
-        .json(&container_config)
-        .send()
-        .await
-        .map_err(|e| MaestroError(format!("Failed to send request to Docker API: {}", e)))?;
-
-    if response.status().is_success() {
-        println!("{}", "🐳 Container created successfully.".green().bold());
+    if output.status.success() {
         Ok(())
     } else {
-        Err(MaestroError(format!("Failed to create container: {}", response.status())))
+        let error = String::from_utf8_lossy(&output.stderr);
+        Err(MaestroError(format!("npm command failed: {}", error)))
     }
-}
-
-async fn handle_client(mut socket: TcpStream) -> Result<(), MaestroError> {
-    let mut buffer = [0; 1024];
-    let bytes_read = socket.read(&mut buffer).await
-        .map_err(|e| MaestroError(format!("Failed to read from socket: {}", e)))?;
-    let received = String::from_utf8_lossy(&buffer[..bytes_read]);
-    println!("{}", format!("📥 Received: {}", received).blue());
-
-    // Process the received data here
-
-    let response = "Processed your request";
-    socket.write_all(response.as_bytes()).await
-        .map_err(|e| MaestroError(format!("Failed to write to socket: {}", e)))?;
-    println!("{}", "📤 Sent response".blue());
-    Ok(())
-}
-
-async fn run_socket_server() -> Result<(), MaestroError> {
-    let listener = TcpListener::bind("127.0.0.1:3010").await
-        .map_err(|e| MaestroError(format!("Failed to bind to port 3010: {}", e)))?;
-    println!("{}", "🎧 Socket server listening on port 3010".yellow().bold());
-
-    loop {
-        let (socket, _) = listener.accept().await
-            .map_err(|e| MaestroError(format!("Failed to accept connection: {}", e)))?;
-        tokio::spawn(async move {
-            if let Err(e) = handle_client(socket).await {
-                eprintln!("{}", format!("❌ Error handling client: {}", e).red().bold());
-            }
-        });
-    }
-}
-
-async fn run_socket_client() -> Result<(), MaestroError> {
-    let mut stream = TcpStream::connect("127.0.0.1:3011").await
-        .map_err(|e| MaestroError(format!("Failed to connect to port 3011: {}", e)))?;
-    println!("{}", "🔌 Connected to socket server on port 3011".yellow().bold());
-
-    let message = "Hello from client";
-    stream.write_all(message.as_bytes()).await
-        .map_err(|e| MaestroError(format!("Failed to write to socket: {}", e)))?;
-
-    let mut buffer = [0; 1024];
-    let bytes_read = stream.read(&mut buffer).await
-        .map_err(|e| MaestroError(format!("Failed to read from socket: {}", e)))?;
-    let response = String::from_utf8_lossy(&buffer[..bytes_read]);
-    println!("{}", format!("📥 Received response: {}", response).blue());
-
-    Ok(())
 }
 
 async fn is_npm_available() -> bool {
     Command::new("npm")
         .arg("--version")
         .output()
-        .await.is_ok()
+        .await
+        .is_ok()
+}
+
+async fn deploy_locally(config: &Config) -> Result<(), MaestroError> {
+    println!("{}", "🏠 Deploying locally".blue().bold());
+
+    // Pull the Docker image
+    let docker_pull = Command::new("docker")
+        .args(&["pull", &config.docker.image_name])
+        .output()
+        .await
+        .map_err(|e| MaestroError(format!("Failed to pull Docker image: {}", e)))?;
+
+    if !docker_pull.status.success() {
+        let error = String::from_utf8_lossy(&docker_pull.stderr);
+        return Err(MaestroError(format!("Failed to pull Docker image: {}", error)));
+    }
+
+    // Remove existing container if it exists
+    let _ = Command::new("docker")
+        .args(&["rm", "-f", &config.docker.container_name])
+        .output()
+        .await;
+
+    // Run the Docker container
+    let docker_run = Command::new("docker")
+        .args(&[
+            "run",
+            "-d",
+            "--name", &config.docker.container_name,
+            &config.docker.image_name
+        ])
+        .output()
+        .await
+        .map_err(|e| MaestroError(format!("Failed to run Docker container: {}", e)))?;
+
+    if !docker_run.status.success() {
+        let error = String::from_utf8_lossy(&docker_run.stderr);
+        return Err(MaestroError(format!("Failed to run Docker container: {}", error)));
+    }
+
+    // Verify the container is running
+    let docker_ps = Command::new("docker")
+        .args(&["ps", "--filter", &format!("name={}", config.docker.container_name), "--format", "{{.Names}}"])
+        .output()
+        .await
+        .map_err(|e| MaestroError(format!("Failed to verify container: {}", e)))?;
+
+    let container_name = String::from_utf8_lossy(&docker_ps.stdout).trim().to_string();
+    if container_name == config.docker.container_name {
+        println!("{}", format!("✅ Container '{}' is running", config.docker.container_name).green().bold());
+    } else {
+        return Err(MaestroError(format!("Container '{}' is not running", config.docker.container_name)));
+    }
+
+    println!("{}", "✅ Deployed locally".green().bold());
+    Ok(())
+}
+
+async fn deploy_remotely(host: &Host, config: &Config) -> Result<(), MaestroError> {
+    println!("{}", format!("🌐 Deploying to {}", host.address).blue().bold());
+
+    let ssh_command = match &host.auth_method {
+        AuthMethod::Password(password) => format!(
+            "sshpass -p '{}' ssh {}@{}",
+            password, host.username, host.address
+        ),
+        AuthMethod::Key(key_path) => format!(
+            "ssh -i {} {}@{}",
+            key_path, host.username, host.address
+        ),
+    };
+
+    let docker_commands = vec![
+        format!("docker pull {}", config.docker.image_name),
+        format!("docker rm -f {}", config.docker.container_name),
+        format!(
+            "docker run -d --name {} {}",
+            config.docker.container_name, config.docker.image_name
+        ),
+        format!(
+            "docker ps --filter name={} --format '{{{{.Names}}}}'",
+            config.docker.container_name
+        ),
+    ];
+
+    for cmd in docker_commands {
+        let full_command = format!("{} '{}'", ssh_command, cmd);
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg(&full_command)
+            .output()
+            .await
+            .map_err(|e| MaestroError(format!("Failed to execute command: {}", e)))?;
+
+        println!("Command output: {}", String::from_utf8_lossy(&output.stdout));
+
+        if !output.status.success() {
+            let error = String::from_utf8_lossy(&output.stderr);
+            return Err(MaestroError(format!("Command failed: {}", error)));
+        }
+    }
+
+    println!("{}", format!("✅ Deployed to {}", host.address).green().bold());
+    Ok(())
+}
+
+async fn deploy_to_host(host: &Host, config: &Config) -> Result<(), MaestroError> {
+    match host.address.as_str() {
+        "localhost" => deploy_locally(config).await,
+        _ => deploy_remotely(host, config).await,
+    }
+}
+
+async fn deploy_to_all_hosts(config: &Config) -> Result<(), MaestroError> {
+    for host in &config.deployment.hosts {
+        deploy_to_host(host, config).await?;
+    }
+    Ok(())
 }
 
 #[tokio::main]
@@ -175,34 +240,22 @@ async fn main() -> Result<(), MaestroError> {
         .map_err(|e| MaestroError(format!("Failed to parse config file: {}", e)))?;
 
     if is_npm_available().await {
-      eprintln!("{}", format!("🎉 npm found!").green().bold())
+        println!("{}", "🎉 npm found!".green().bold());
     } else {
-      return Err(MaestroError("❌ npm is not available. Please install Node.js and npm.".to_string()));
+        return Err(MaestroError("❌ npm is not available. Please install Node.js and npm.".to_string()));
     }
 
     build_or_start_dashboard(&config).await?;
-    // create_docker_container(&config).await?;
+    deploy_to_all_hosts(&config).await?;
 
-    let server = tokio::spawn(async {
-        if let Err(e) = run_socket_server().await {
-            eprintln!("{}", format!("❌ Socket server error: {}", e).red().bold());
-        }
-    });
-
-    //let client = tokio::spawn(async {
-    //    if let Err(e) = run_socket_client().await {
-    //        eprintln!("{}", format!("❌ Socket client error: {}", e).red().bold());
-    //    }
-    //});
-
-    // Wait for both the server and client to complete (or for Ctrl+C)
-    tokio::select! {
-        _ = server => {},
-        // _ = client => {},
-        _ = tokio::signal::ctrl_c() => {
-            println!("{}", "👋 Shutting down".magenta().bold());
-        }
-    }
+    println!("{}", "📊 Summary:".cyan().bold());
+    println!("   Dashboard: http://localhost:{}", DASHBOARD_PORT);
+    println!("   Docker container: {}", config.docker.container_name);
+    
+    // Keep the application running
+    println!("{}", "🔄 Application is running. Press Ctrl+C to stop.".yellow().bold());
+    tokio::signal::ctrl_c().await.map_err(|e| MaestroError(format!("Failed to listen for Ctrl+C: {}", e)))?;
+    println!("{}", "👋 Shutting down".magenta().bold());
 
     Ok(())
 }
