@@ -5,13 +5,11 @@
     //! for monitoring and control.
 
     use std::path::{Path, PathBuf};
-    use std::sync::Arc;
     use std::fs;
     use std::process::Stdio;
     use serde_derive::{Deserialize, Serialize};
     use tokio::process::Command;
     use tokio::io::AsyncWriteExt;
-    use tokio::sync::Mutex;
     use std::error::Error;
     use std::fmt;
     use colored::*;
@@ -397,14 +395,6 @@
         }
     }
 
-    /// Deploys to all hosts specified in the configuration
-    async fn deploy_to_all_hosts(config: &Config) -> Result<(), MaestroError> {
-        for host in &config.deployment.hosts {
-            deploy_to_host(host, config).await?;
-        }
-        Ok(())
-    }
-
     /// Main function to run the Horizon Maestro application
     #[tokio::main]
     async fn main() -> Result<(), MaestroError> {
@@ -424,10 +414,10 @@
         }
 
         // Create a channel for shutting down the API server
-        let (shutdown_tx, shutdown_rx) = oneshot::channel();
+        let (_shutdown_tx, shutdown_rx) = oneshot::channel();
            
         // Start the API server in a new thread
-        let api_handle = tokio::spawn(async move {
+        let _api_handle = tokio::spawn(async move {
             if let Err(e) = api::run_api_server(shutdown_rx).await {
                 eprintln!("API server error: {}", e);
             }

@@ -1,10 +1,8 @@
 use actix_web::{get, web, App, HttpServer, Responder};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use chrono::{DateTime, Utc};
 use rand::Rng;
 use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 use tokio::sync::oneshot;
 
 // Structs for various data types
@@ -526,7 +524,7 @@ pub async fn run_api_server(shutdown_rx: oneshot::Receiver<()>) -> std::io::Resu
     })
     .bind("0.0.0.0:8080")?
     .run();
-    println!("API Server running on 0.0.0.0:8080");
+    println!("🗺️  API Server running on 0.0.0.0:8080");
 
     tokio::select! {
         _ = server => {},
