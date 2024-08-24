@@ -681,6 +681,7 @@ async fn main() -> Result<(), MaestroError> {
 fn print_deployment_summary(config: &Config) {
     println!("{}", "📊 Deployment Summary:".cyan().bold());
     println!("   Dashboard: http://localhost:{}", DASHBOARD_PORT);
+    println!("   API : http://localhost:{}", 8080);
     println!("   Deployed Containers:");
     for container in &config.docker.containers {
         println!("     - Image: {}", container.image_name);

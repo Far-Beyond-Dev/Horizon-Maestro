@@ -3,6 +3,7 @@ use serde::Serialize;
 use chrono::{DateTime, Utc};
 use rand::Rng;
 use std::collections::HashMap;
+use std::fmt;
 use tokio::sync::oneshot;
 use sqlx::sqlite::SqlitePool;
 use crate::api::setup_db::setup_db;
