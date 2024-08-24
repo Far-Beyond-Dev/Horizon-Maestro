@@ -1,12 +1,13 @@
 use serde::Serialize;
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
+use std::fmt::{self, Display};
 
 // pub structs for various data types
 
 /// Represents cluster usage data including CPU and memory usage over time.
-#[derive(Serialize)]
-pub struct ClusterUsage {
+#[derive(Serialize, Debug)]
+pub struct ClusterUsage{
     /// Time labels for the usage data points
     pub labels: Vec<String>,
     /// CPU usage percentages corresponding to each label
@@ -16,7 +17,7 @@ pub struct ClusterUsage {
 }
 
 /// Represents information about a game server.
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct Server {
     /// Name of the server
     pub name: String,
@@ -28,6 +29,13 @@ pub struct Server {
     pub cpu: f64,
     /// Current memory usage percentage
     pub memory: f64,
+}
+
+impl Display for Server {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Server '{}' - Status: {}, Players: {}, CPU: {:.2}%, Memory: {:.2}%", 
+               self.name, self.status, self.players, self.cpu, self.memory)
+    }
 }
 
 /// Represents a player activity event.
