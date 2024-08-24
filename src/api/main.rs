@@ -1,4 +1,3 @@
-use actix_web:: {web, App, HttpServer};
 use tokio::sync::oneshot;
 use crate::api::setup_db::setup_db;
 use fern::Dispatch;
