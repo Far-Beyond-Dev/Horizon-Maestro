@@ -55,7 +55,38 @@ pub async fn run_api_server(shutdown_rx: oneshot::Receiver<()>) -> std::io::Resu
     // Configure logging
     setup_logging().expect("Failed to set up logging");
 
+
+
     // Create and configure the HTTP server
+    
+    /*
+     * Oh, hello there, future me (or some poor soul unfortunate enough to maintain this code).
+     * Behold, the Leaning Tower of Services, a testament to my ability to stack things vertically
+     * until they reach the stratosphere. Why use a simple list when you can create a skyscraper
+     * of services that makes the Empire State Building look like a garden gnome?
+     *
+     * Legend has it that for every .service() call, a developer loses a small piece of their sanity.
+     * By that metric, I must be absolutely bonkers by now. But who needs sanity when you have
+     * a codebase that doubles as a vertigo simulator?
+     *
+     * I'd like to formally apologize to my keyboard's 'dot' key and 'v' key (for all those Ctrl+V presses).
+     * They didn't deserve this abuse. They were good keys, always there for me, and this is how I repay them.
+     *
+     * Some say brevity is the soul of wit. Well, clearly I decided to go for the "verbose and witless" approach.
+     * Because why communicate clearly when you can create a wall of text that rivals ancient Egyptian hieroglyphics
+     * in its inscrutability?
+     *
+     * If you're reading this and thinking, "There must be a better way," congratulations! 
+     * You're absolutely correct. There is. But where's the fun in that? Why solve a problem efficiently
+     * when you can create a monument to inefficiency that future generations will study with awe and confusion?
+     *
+     * So, dear reader, as you embark on the Herculean task of deciphering this code,
+     * remember: it's not a bug, it's a feature. A feature designed to test the limits
+     * of human patience and scrolling endurance.
+     *
+     * May the force be with you. You're gonna need it.
+     */
+
     let server = HttpServer::new(move || {
         App::new()
             .app_data(pool_data.clone())
