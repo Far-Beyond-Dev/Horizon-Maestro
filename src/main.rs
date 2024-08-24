@@ -1,11 +1,76 @@
 use std::path::{Path, PathBuf};
 use std::fs;
+use std::process::Stdio;
+use serde_derive::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::oneshot;
 use colored::*;
-use crate::config::{Config, Host, AuthMethod};
-use crate::error::MaestroError;
+use std::error::Error;
+use std::fmt;
+
+mod api;
+
+    /// Main configuration structure for Maestro
+    #[derive(Deserialize, Serialize, Clone)]
+    struct Config {
+        npm: NpmConfig,
+        docker: DockerConfig,
+        deployment: DeploymentConfig,
+        cache: Option<String>, // Keep this if it's needed
+    }
+    /// Custom error type for Maestro operations
+    #[derive(Debug)]
+    struct MaestroError(String);
+
+    impl fmt::Display for MaestroError {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            write!(f, "{}", self.0)
+        }
+    }
+
+    impl Error for MaestroError {}
+
+    /// Configuration for NPM-related operations
+    #[derive(Deserialize, Serialize, Clone)]
+    struct NpmConfig {
+        dashboard_path: String,
+    }
+
+    /// Configuration for deployment hosts
+    #[derive(Deserialize, Serialize, Clone)]
+    struct DeploymentConfig {
+        hosts: Vec<Host>,
+    }
+
+    /// Represents a host for deployment
+    #[derive(Deserialize, Serialize, Clone)]
+    struct Host {
+        address: String,
+        username: String,
+        auth_method: AuthMethod,
+        ssh_port: Option<u16>,
+    }
+
+    /// Authentication methods for SSH connections
+    #[derive(Deserialize, Serialize, Clone)]
+    enum AuthMethod {
+        Password(String),
+        Key(String),
+    }
+
+    /// Configuration for Docker containers
+    #[derive(Deserialize, Serialize, Clone)]
+    struct DockerConfig {
+        containers: Vec<ContainerConfig>,
+    }
+
+    /// Configuration for individual Docker containers
+    #[derive(Deserialize, Serialize, Clone)]
+    struct ContainerConfig {
+        image_name: String,
+        container_name: String,
+    }
 
 /// Port number for the dashboard preview server
 const DASHBOARD_PORT: u16 = 3000;
