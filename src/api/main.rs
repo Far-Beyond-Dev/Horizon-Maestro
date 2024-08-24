@@ -1,3 +1,4 @@
+use actix_web::{web, App, HttpServer};
 use tokio::sync::oneshot;
 use crate::api::setup_db::setup_db;
 use fern::Dispatch;
@@ -84,7 +85,6 @@ pub async fn run_api_server(shutdown_rx: oneshot::Receiver<()>) -> std::io::Resu
     .run();
 
 
-    use actix_web::{web, App, HttpServer};
 
 
     ////////////////////////////////////////////////////////////////////////
