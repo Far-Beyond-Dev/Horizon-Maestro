@@ -1,7 +1,6 @@
 use sqlx::sqlite::SqlitePool;
 use std::env;
 use std::fs::File;
-use std::io::Result;
 
 pub async fn setup_db() -> SqlitePool {
     let database_url = env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:mydb.db".to_string());
