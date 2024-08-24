@@ -84,6 +84,50 @@ pub async fn run_api_server(shutdown_rx: oneshot::Receiver<()>) -> std::io::Resu
     .bind("0.0.0.0:8080")?
     .run();
 
+
+    use actix_web::{web, App, HttpServer};
+
+
+    ////////////////////////////////////////////////////////////////////////
+    //                                 WIP                                //
+    ////////////////////////////////////////////////////////////////////////
+    //
+    //  macro_rules! add_services {
+    //      ($app:expr, $($path:expr => $handler:expr),* $(,)?) => {
+    //          $($app.service(web::scope($path).service($handler)))*
+    //      };
+    //  }
+    //  
+    //  let server = HttpServer::new(move || {
+    //      let app = App::new().app_data(pool_data.clone());
+    //  
+    //      add_services!(app,
+    //          "/network" => routes::network::clusters::cluster_usage,
+    //          "/network" => routes::network::latency::network_latency,
+    //          "/network" => routes::network::regions::network_regions,
+    //          "/network" => routes::network::bandwidth::network_bandwidth,
+    //          "/network" => routes::network::cluster_bandwidth::cluster_bandwidth,
+    //          "/network" => routes::network::server_bandwidth::server_bandwidth,
+    //          "/network" => routes::network::health::connection_health,
+    //          "/servers" => routes::servers::get_servers,
+    //          "/player-activities" => routes::player_activities::player_activities,
+    //          "/deployments" => routes::deployments::deployments,
+    //          "/databases" => routes::databases::databases,
+    //          "/alerts" => routes::alerts::alerts,
+    //          "/maintenance/updates" => routes::maintenance::updates::avalible_updates,
+    //          "/maintenance/updates" => routes::maintenance::updates::update_history,
+    //          "/maintenance/tasks" => routes::maintenance::tasks::scheduled_tasks,
+    //          "/maintenance/tasks" => routes::maintenance::tasks::task_history,
+    //          "/maintenance/backups" => routes::maintenance::backups::backups,
+    //          "/load-balancing" => routes::load_balancing::policy::load_balancing_policy,
+    //          "/security/access" => routes::security::access::user_access,
+    //          "/security/audit" => routes::security::audit_log::audit_log,
+    //          "/subsystems" => routes::subsystems::subsystems,
+    //      )
+    //  });
+
+
+
     println!("🗺️  API Server running on 0.0.0.0:8080");
 
     // Run the server and handle shutdown gracefully
