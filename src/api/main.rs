@@ -54,6 +54,7 @@ pub async fn run_api_server(shutdown_rx: oneshot::Receiver<()>) -> std::io::Resu
 
     // Configure logging
     setup_logging().expect("Failed to set up logging");
+    println!("Hello from the API!");
 
 
 

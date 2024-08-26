@@ -42,7 +42,7 @@ async fn add_test_servers(pool: &SqlitePool) {
     // Use SmallRng seeded from entropy
     let mut rng = SmallRng::from_entropy();
 
-    for i in 1..=2000000 {
+    for i in 1..=2000 {
         let name = format!("Server {}", i);
         let status = if rng.gen_bool(0.8) { "Online" } else { "Offline" };
         let players = rng.gen_range(0..100);
@@ -65,5 +65,5 @@ async fn add_test_servers(pool: &SqlitePool) {
             panic!("Database insertion failed");
         });
     }
-    println!("Added 2 Million test servers to the database.");
+    println!("Added 2000 test servers to the database.");
 }
