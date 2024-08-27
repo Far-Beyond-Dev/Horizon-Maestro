@@ -5,3 +5,4 @@ pub mod bandwidth;
 pub mod regions;
 pub mod latency;
 pub mod clusters;
+pub mod cluster_usage;

@@ -1,4 +1,4 @@
-use actix_web::{web, App, HttpServer, http::header};
+use actix_web::{http::header, web::{self, route}, App, HttpServer};
 use actix_cors::Cors;
 use tokio::sync::oneshot;
 use crate::api::setup_db::setup_db;
@@ -59,6 +59,7 @@ pub async fn run_api_server(shutdown_rx: oneshot::Receiver<()>) -> std::io::Resu
             .service(routes::network::regions::network_regions)
             .service(routes::network::bandwidth::network_bandwidth)
             .service(routes::network::cluster_bandwidth::cluster_bandwidth)
+            .service(routes::network::cluster_usage::cluster_usage)
             .service(routes::network::server_bandwidth::server_bandwidth)
             .service(routes::network::health::connection_health)
             .service(routes::maintenance::updates::avalible_updates)
