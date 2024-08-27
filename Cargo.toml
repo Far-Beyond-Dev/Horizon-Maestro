@@ -21,3 +21,4 @@ sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
 dotenv = "0.15.0"
 log = "0.4.22"
 fern = "0.6.2"
+actix-cors = "0.7.0"

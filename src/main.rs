@@ -127,12 +127,12 @@ async fn build_or_start_dashboard(config: &Config) -> Result<(), MaestroError> {
     }
 
     // Start the dashboard preview
-    println!("{}", "🚀 Starting dashboard preview...".cyan().bold());
-    tokio::spawn(async move {
-        if let Err(e) = run_npm_command(&dashboard_path, &["run", "preview", "--", "--port", &DASHBOARD_PORT.to_string()]).await {
-            eprintln!("{}", format!("❌ Error starting dashboard preview: {}", e).red().bold());
-        }
-    });
+    // println!("{}", "🚀 Starting dashboard preview...".cyan().bold());
+    // tokio::spawn(async move {
+    //     if let Err(e) = run_npm_command(&dashboard_path, &["run", "preview", "--", "--port", &DASHBOARD_PORT.to_string()]).await {
+    //         eprintln!("{}", format!("❌ Error starting dashboard preview: {}", e).red().bold());
+    //     }
+    // });
 
     println!("{}", format!("🌐 Dashboard is now running at http://localhost:{}", DASHBOARD_PORT).green().bold());
     Ok(())
