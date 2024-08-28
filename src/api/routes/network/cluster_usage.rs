@@ -23,7 +23,7 @@ async fn cluster_usage() -> impl Responder {
         series: vec![
             Series {
                 name: "Cluster 1".to_string(),
-                data: vec![75, 1, 70, 85, 90, 95, 88],
+                data: vec![75, 72, 70, 85, 90, 95, 88],
                 color: "rgba(26, 86, 219, 1)".to_string(),
             },
             Series {
@@ -38,7 +38,12 @@ async fn cluster_usage() -> impl Responder {
             },
             Series {
                 name: "Cluster 4".to_string(),
-                data: vec![45, 50, 55, 60, 65, 60, 68],
+                data: vec![15, 20, 15, 30, 45, 30, 28],
+                color: "rgba(245, 18, 11, 1)".to_string(),
+            },
+            Series {
+                name: "Cluster 4".to_string(),
+                data: vec![90, 80, 90, 75, 80, 63, 61],
                 color: "rgba(245, 158, 11, 1)".to_string(),
             },
         ],
