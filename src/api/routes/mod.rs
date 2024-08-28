@@ -8,3 +8,4 @@ pub mod alerts;
 pub mod databases;
 pub mod deployments;
 pub mod player_activities;
+pub mod dashboard;

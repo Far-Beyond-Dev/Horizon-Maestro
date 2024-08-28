@@ -49,6 +49,7 @@ pub async fn run_api_server(shutdown_rx: oneshot::Receiver<()>) -> std::io::Resu
                     .supports_credentials() // Allow credentials
                     .max_age(3600), // Cache the CORS response for 1 hour
             )
+            .service(routes::dashboard::systemAlerts::get_insights)
             .service(routes::deployments::averageStats::player_stats)
             .service(routes::deployments::playersByPlatform::players_by_platform)
             .service(routes::network::clusters::cluster_usage)
