@@ -3,8 +3,8 @@ dashboard_path = "./Horizon-Dashboard"
 
 [deployment]
 hosts = [
-  { address = "localhost", username = "tristan", auth_method = { Password = "1261" } },
-  { address = "gameplexsoftware.com", username = "fbadmin", auth_method = { Password = "fbadmin" }, ssh_port = 8789 }
+  { address = "localhost", username = "myuser", auth_method = { Password = "mypassword" } },
+  { address = "gameplexsoftware.com", username = "myuser", auth_method = { Password = "mypassword" }, ssh_port = 22 }
 ]
 
 [docker]

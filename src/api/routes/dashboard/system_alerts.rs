@@ -22,8 +22,3 @@ async fn get_insights() -> impl Responder {
 
     web::Json(insight)
 }
-
-// Add this function to your main.rs or lib.rs
-pub fn configure_routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_insights);
-}

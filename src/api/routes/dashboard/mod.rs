@@ -1,1 +1,1 @@
-pub mod systemAlerts;
+pub mod system_alerts;

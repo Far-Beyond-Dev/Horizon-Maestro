@@ -1,4 +1,4 @@
-use actix_web::{http::header, web::{self, route}, App, HttpServer};
+use actix_web::{App, web, HttpServer};
 use actix_cors::Cors;
 use tokio::sync::oneshot;
 use crate::api::setup_db::setup_db;
@@ -49,9 +49,9 @@ pub async fn run_api_server(shutdown_rx: oneshot::Receiver<()>) -> std::io::Resu
                     .supports_credentials() // Allow credentials
                     .max_age(3600), // Cache the CORS response for 1 hour
             )
-            .service(routes::dashboard::systemAlerts::get_insights)
-            .service(routes::deployments::averageStats::player_stats)
-            .service(routes::deployments::playersByPlatform::players_by_platform)
+            .service(routes::dashboard::system_alerts::get_insights)
+            .service(routes::deployments::average_stats::player_stats)
+            .service(routes::deployments::players_by_platform::players_by_platform)
             .service(routes::network::clusters::cluster_usage)
             .service(routes::servers::get_servers)
             .service(routes::player_activities::player_activities)

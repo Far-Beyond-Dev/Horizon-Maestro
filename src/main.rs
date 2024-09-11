@@ -10,67 +10,69 @@ use std::error::Error;
 use std::fmt;
 
 mod api;
+mod handlers;
 
-    /// Main configuration structure for Maestro
-    #[derive(Deserialize, Serialize, Clone)]
-    struct Config {
-        npm: NpmConfig,
-        docker: DockerConfig,
-        deployment: DeploymentConfig,
-        cache: Option<String>, // Keep this if it's needed
+/// Main configuration structure for Maestro
+#[derive(Deserialize, Serialize, Clone)]
+struct Config {
+    npm: NpmConfig,
+    docker: DockerConfig,
+    deployment: DeploymentConfig,
+    cache: Option<String>, // Keep this if it's needed
+}
+
+/// Custom error type for Maestro operations
+#[derive(Debug)]
+struct MaestroError(String);
+
+impl fmt::Display for MaestroError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
-    /// Custom error type for Maestro operations
-    #[derive(Debug)]
-    struct MaestroError(String);
+}
 
-    impl fmt::Display for MaestroError {
-        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            write!(f, "{}", self.0)
-        }
-    }
+impl Error for MaestroError {}
 
-    impl Error for MaestroError {}
+/// Configuration for NPM-related operations
+#[derive(Deserialize, Serialize, Clone)]
+struct NpmConfig {
+    dashboard_path: String,
+}
 
-    /// Configuration for NPM-related operations
-    #[derive(Deserialize, Serialize, Clone)]
-    struct NpmConfig {
-        dashboard_path: String,
-    }
+/// Configuration for deployment hosts
+#[derive(Deserialize, Serialize, Clone)]
+struct DeploymentConfig {
+    hosts: Vec<Host>,
+}
 
-    /// Configuration for deployment hosts
-    #[derive(Deserialize, Serialize, Clone)]
-    struct DeploymentConfig {
-        hosts: Vec<Host>,
-    }
+/// Represents a host for deployment
+#[derive(Deserialize, Serialize, Clone)]
+struct Host {
+    address: String,
+    username: String,
+    auth_method: AuthMethod,
+    ssh_port: Option<u16>,
+}
 
-    /// Represents a host for deployment
-    #[derive(Deserialize, Serialize, Clone)]
-    struct Host {
-        address: String,
-        username: String,
-        auth_method: AuthMethod,
-        ssh_port: Option<u16>,
-    }
+/// Authentication methods for SSH connections
+#[derive(Deserialize, Serialize, Clone)]
+enum AuthMethod {
+    Password(String),
+    Key(String),
+}
 
-    /// Authentication methods for SSH connections
-    #[derive(Deserialize, Serialize, Clone)]
-    enum AuthMethod {
-        Password(String),
-        Key(String),
-    }
+/// Configuration for Docker containers
+#[derive(Deserialize, Serialize, Clone)]
+struct DockerConfig {
+    containers: Vec<ContainerConfig>,
+}
 
-    /// Configuration for Docker containers
-    #[derive(Deserialize, Serialize, Clone)]
-    struct DockerConfig {
-        containers: Vec<ContainerConfig>,
-    }
-
-    /// Configuration for individual Docker containers
-    #[derive(Deserialize, Serialize, Clone)]
-    struct ContainerConfig {
-        image_name: String,
-        container_name: String,
-    }
+/// Configuration for individual Docker containers
+#[derive(Deserialize, Serialize, Clone)]
+struct ContainerConfig {
+    image_name: String,
+    container_name: String,
+}
 
 /// Port number for the dashboard preview server
 const DASHBOARD_PORT: u16 = 3000;
@@ -127,12 +129,12 @@ async fn build_or_start_dashboard(config: &Config) -> Result<(), MaestroError> {
     }
 
     // Start the dashboard preview
-    // println!("{}", "🚀 Starting dashboard preview...".cyan().bold());
-    // tokio::spawn(async move {
-    //     if let Err(e) = run_npm_command(&dashboard_path, &["run", "preview", "--", "--port", &DASHBOARD_PORT.to_string()]).await {
-    //         eprintln!("{}", format!("❌ Error starting dashboard preview: {}", e).red().bold());
-    //     }
-    // });
+    println!("{}", "🚀 Starting dashboard preview...".cyan().bold());
+    tokio::spawn(async move {
+        if let Err(e) = run_npm_command(&dashboard_path, &["run", "preview", "--", "--port", &DASHBOARD_PORT.to_string()]).await {
+            eprintln!("{}", format!("❌ Error starting dashboard preview: {}", e).red().bold());
+        }
+    });
 
     println!("{}", format!("🌐 Dashboard is now running at http://localhost:{}", DASHBOARD_PORT).green().bold());
     Ok(())
@@ -297,8 +299,6 @@ async fn deploy_locally(config: &Config) -> Result<(), MaestroError> {
 async fn deploy_remotely(host: &Host, config: &Config) -> Result<(), MaestroError> {
     println!("{}", format!("🌐 Deploying to {}", host.address).blue().bold());
 
-    let ssh_command = build_ssh_command(host);
-
     for container in &config.docker.containers {
         let docker_commands = vec![
             format!("docker pull {}", container.image_name),
@@ -314,9 +314,7 @@ async fn deploy_remotely(host: &Host, config: &Config) -> Result<(), MaestroErro
         ];
 
         for cmd in docker_commands {
-            let full_command = format!("{} '{}'", ssh_command, cmd);
-            let output = run_ssh_command(&full_command, host).await?;
-
+            let output = run_ssh_command(&cmd, host).await?;
             println!("Command output: {}", output);
         }
 
@@ -349,17 +347,14 @@ async fn deploy_remotely(host: &Host, config: &Config) -> Result<(), MaestroErro
 async fn ensure_docker_installed_remote(host: &Host) -> Result<(), MaestroError> {
     println!("{}", format!("🐳 Checking Docker installation on {}...", host.address).blue().bold());
 
-    let ssh_command = build_ssh_command(host);
-    let full_command = format!("{} 'docker --version'", ssh_command);
+    let check_docker = run_ssh_command("command -v docker || echo 'Docker not found'", host).await?;
 
-    let output = run_ssh_command(&full_command, host).await?;
-
-    if !output.is_empty() {
-        println!("{}", format!("✅ Docker is installed on {}: {}", host.address, output.trim()).green().bold());
-        Ok(())
-    } else {
+    if check_docker.contains("Docker not found") {
         println!("{}", format!("⚠️  Docker is not installed on {}. Attempting to install...", host.address).yellow().bold());
         install_docker_remote(host).await
+    } else {
+        println!("{}", format!("✅ Docker is installed on {}", host.address).green().bold());
+        Ok(())
     }
 }
 
@@ -414,7 +409,8 @@ async fn ensure_docker_installed_local() -> Result<(), MaestroError> {
 /// - Running the Docker installation script fails
 async fn install_docker_local() -> Result<(), MaestroError> {
     println!("{}", "📥 Downloading Docker installation script...".blue().bold());
-
+    
+    // Download the Docker installation script
     let curl_output = Command::new("curl")
         .arg("-fsSL")
         .arg("https://get.docker.com")
@@ -422,14 +418,17 @@ async fn install_docker_local() -> Result<(), MaestroError> {
         .await
         .map_err(|e| MaestroError(format!("Failed to download Docker installation script: {}", e)))?;
 
+    // Check if the download was successful
     if !curl_output.status.success() {
         return Err(MaestroError("Failed to download Docker installation script".to_string()));
     }
 
+    // Convert the script content to a string
     let script_content = String::from_utf8_lossy(&curl_output.stdout).to_string();
 
     println!("{}", "🚀 Running Docker installation script locally...".blue().bold());
 
+    // Run the Docker installation script
     let install_output = Command::new("sh")
         .arg("-c")
         .arg(&script_content)
@@ -437,6 +436,7 @@ async fn install_docker_local() -> Result<(), MaestroError> {
         .await
         .map_err(|e| MaestroError(format!("Failed to run Docker installation script: {}", e)))?;
 
+    // Check if the installation was successful
     if install_output.status.success() {
         println!("{}", "✅ Docker installed successfully on local machine".green().bold());
         Ok(())
@@ -445,7 +445,7 @@ async fn install_docker_local() -> Result<(), MaestroError> {
         Err(MaestroError(format!("Docker installation failed locally: {}", error)))
     }
 }
-
+    
 /// Installs Docker on a remote host.
 ///
 /// This function runs a Docker installation script on the remote host to install Docker.
@@ -467,14 +467,16 @@ async fn install_docker_local() -> Result<(), MaestroError> {
 async fn install_docker_remote(host: &Host) -> Result<(), MaestroError> {
     println!("{}", format!("📥 Installing Docker on {}...", host.address).blue().bold());
 
-    let install_command = r#"curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh"#;
+    let install_command = r#"
+        curl -fsSL https://get.docker.com -o get-docker.sh && 
+        sudo sh get-docker.sh && 
+        sudo usermod -aG docker $USER && 
+        echo 'Docker installed successfully'
+    "#;
     
-    let ssh_command = build_ssh_command(host);
-    let full_command = format!("{} '{}'", ssh_command, install_command);
+    let output = run_ssh_command(install_command, host).await?;
 
-    let output = run_ssh_command(&full_command, host).await?;
-
-    if !output.contains("ERROR") {
+    if output.contains("Docker installed successfully") {
         println!("{}", format!("✅ Docker installed successfully on {}", host.address).green().bold());
         Ok(())
     } else {
@@ -485,7 +487,7 @@ async fn install_docker_remote(host: &Host) -> Result<(), MaestroError> {
 /// Builds the SSH command string based on the host configuration.
 ///
 /// This function constructs an SSH command string with appropriate options based on the host's
-/// authentication method and SSH port.
+/// authentication method and SSH port. It now properly escapes the password for SSHpass.
 ///
 /// # Arguments
 ///
@@ -498,8 +500,9 @@ fn build_ssh_command(host: &Host) -> String {
     let port_option = host.ssh_port.map_or(String::new(), |port| format!("-p {}", port));
     
     match &host.auth_method {
-        AuthMethod::Password(_) => format!(
-            "ssh -o BatchMode=no -o StrictHostKeyChecking=no {} {}@{}",
+        AuthMethod::Password(password) => format!(
+            "sshpass -p {} ssh {} {}@{}",
+            password, // Escape single quotes in the password
             port_option, host.username, host.address
         ),
         AuthMethod::Key(key_path) => format!(
@@ -509,10 +512,9 @@ fn build_ssh_command(host: &Host) -> String {
     }
 }
 
-/// Runs an SSH command and handles password input if necessary.
+/// Runs an SSH command using the updated build_ssh_command function.
 ///
-/// This function executes an SSH command on a remote host, handling password-based
-/// authentication if required.
+/// This function executes an SSH command on a remote host, now with improved error handling.
 ///
 /// # Arguments
 ///
@@ -531,28 +533,15 @@ fn build_ssh_command(host: &Host) -> String {
 /// - The remote command returns a non-zero exit status
 async fn run_ssh_command(command: &str, host: &Host) -> Result<String, MaestroError> {
     let ssh_command = build_ssh_command(host);
-    let full_command = format!("{} '{}'", ssh_command, command);
+    let full_command = format!("{} '{}'", ssh_command, command.replace("'", "'\"'\"'")); // Escape command
 
-    let mut child = Command::new("sh")
+    println!("{}", ssh_command);
+    let output = Command::new("sh")
         .arg("-c")
         .arg(&full_command)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .stdin(Stdio::piped())
-        .spawn()
+        .output()
+        .await
         .map_err(|e| MaestroError(format!("Failed to execute SSH command: {}", e)))?;
-
-    if let AuthMethod::Password(password) = &host.auth_method {
-        if let Some(mut stdin) = child.stdin.take() {
-            let password = password.clone();
-            tokio::spawn(async move {
-                stdin.write_all(format!("{}\n", password).as_bytes()).await.ok();
-            });
-        }
-    }
-
-    let output = child.wait_with_output().await
-        .map_err(|e| MaestroError(format!("Failed to get command output: {}", e)))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
