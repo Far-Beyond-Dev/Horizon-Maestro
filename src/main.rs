@@ -315,7 +315,11 @@ async fn deploy_remotely(host: &Host, config: &Config) -> Result<(), MaestroErro
 
         for cmd in docker_commands {
             let output = run_ssh_command(&cmd, host).await?;
-            println!("Command output: {}", output);
+            println!("SSH OUTPUT | {}@{}:{} / $ {}",host.username.to_string(), host.address.to_string(), host.ssh_port.unwrap().to_string(), cmd);
+ 
+            for line in output.lines() {
+                println!("SSH OUTPUT | {}", line);
+            }
         }
 
         println!("{}", format!("✅ Container '{}' deployed to {}", container.container_name, host.address).green().bold());
@@ -501,7 +505,7 @@ fn build_ssh_command(host: &Host) -> String {
     
     match &host.auth_method {
         AuthMethod::Password(password) => format!(
-            "sshpass -p {} ssh {} {}@{}",
+            "sshpass -p {} ssh {} {}@{} -o StrictHostKeyChecking=no",
             password, // Escape single quotes in the password
             port_option, host.username, host.address
         ),
@@ -535,7 +539,6 @@ async fn run_ssh_command(command: &str, host: &Host) -> Result<String, MaestroEr
     let ssh_command = build_ssh_command(host);
     let full_command = format!("{} '{}'", ssh_command, command.replace("'", "'\"'\"'")); // Escape command
 
-    println!("{}", ssh_command);
     let output = Command::new("sh")
         .arg("-c")
         .arg(&full_command)
@@ -679,7 +682,7 @@ fn print_deployment_summary(config: &Config) {
     println!("   Deployed Hosts:");
     for host in &config.deployment.hosts {
         let port_info = host.ssh_port.map_or(String::new(), |port| format!(" (SSH port: {})", port));
-        println!("     - {}{}", host.address, port_info);
+        println!("     - {}{} Deployed ({}/{} containers)", host.address, port_info, &config.docker.containers.len(), &config.docker.containers.len());
     }
     
     println!("\n{}", "🔍 Notes:".yellow().bold());
