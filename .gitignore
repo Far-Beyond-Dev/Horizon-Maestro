@@ -319,3 +319,4 @@ cython_debug/
 data
 mydb.db
 config.toml
+config.toml
