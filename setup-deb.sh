@@ -1,2 +1,2 @@
 sudo apt-get update
-sudo apt install build-essentials clang openssl-dev sshpass
+sudo apt install  clang sshpass npm

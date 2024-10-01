@@ -2,14 +2,43 @@
 dashboard_path = "./Horizon-Dashboard"
 
 [deployment]
+parallel_containers = true
 hosts = [
-  { address = "localhost", username = "myuser", auth_method = { Password = "mypassword" } },
-  { address = "gameplexsoftware.com", username = "myuser", auth_method = { Password = "mypassword" }, ssh_port = 22 }
+  #{ address = "localhost", username = "myuser", auth_method = { Password = "mypassword" } },
+  { address = "gameplexsoftware.com", username = "fbadmin", auth_method = { Password = "C@WNY_Wireless" }, ssh_port = 8789 }
 ]
 
 [docker]
+instances = 5
 containers = [
   { image_name = "nginx:latest", container_name = "horizon-game-server" },
   { image_name = "nginx:latest", container_name = "horizon-game-database" },
-  { image_name = "nginx:latest", container_name = "horizon-game-cache" }
+  { image_name = "nginx:latest", container_name = "horizon-game-cache" },
+  { image_name = "nginx:latest", container_name = "horizon-game-server1" },
+  { image_name = "nginx:latest", container_name = "horizon-game-database1" },
+  { image_name = "nginx:latest", container_name = "horizon-game-cache1" },
+  { image_name = "nginx:latest", container_name = "horizon-game-server2" },
+  { image_name = "nginx:latest", container_name = "horizon-game-database2" },
+  { image_name = "nginx:latest", container_name = "horizon-game-cache2" },
+  { image_name = "nginx:latest", container_name = "horizon-game-server3" },
+  { image_name = "nginx:latest", container_name = "horizon-game-database3" },
+  { image_name = "nginx:latest", container_name = "horizon-game-cache3" },
+  { image_name = "nginx:latest", container_name = "horizon-game-server4" },
+  { image_name = "nginx:latest", container_name = "horizon-game-database4" },
+  { image_name = "nginx:latest", container_name = "horizon-game-cache4" },
+  { image_name = "nginx:latest", container_name = "horizon-game-server5" },
+  { image_name = "nginx:latest", container_name = "horizon-game-database5" },
+  { image_name = "nginx:latest", container_name = "horizon-game-cache5" },
+  { image_name = "nginx:latest", container_name = "horizon-game-server6" },
+  { image_name = "nginx:latest", container_name = "horizon-game-database6" },
+  { image_name = "nginx:latest", container_name = "horizon-game-cache6" },
+  { image_name = "nginx:latest", container_name = "horizon-game-server7" },
+  { image_name = "nginx:latest", container_name = "horizon-game-database7" },
+  { image_name = "nginx:latest", container_name = "horizon-game-cache7" },
+  { image_name = "nginx:latest", container_name = "horizon-game-server8" },
+  { image_name = "nginx:latest", container_name = "horizon-game-database8" },
+  { image_name = "nginx:latest", container_name = "horizon-game-cache8" },
+  { image_name = "nginx:latest", container_name = "horizon-game-server9" },
+  { image_name = "nginx:latest", container_name = "horizon-game-database9" },
+  { image_name = "nginx:latest", container_name = "horizon-game-cache9" }
 ]
