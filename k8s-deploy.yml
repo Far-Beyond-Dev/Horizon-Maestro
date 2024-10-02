@@ -1,0 +1,79 @@
+---
+# horizon-game-server-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: horizon-game-server
+spec:
+  replicas: 1  # Set this to ${GAME_SERVER_REPLICAS} in your deployment script
+  selector:
+    matchLabels:
+      app: horizon-game-server
+  template:
+    metadata:
+      labels:
+        app: horizon-game-server
+    spec:
+      containers:
+      - name: horizon-game-server
+        image: horizon-game-server:latest  # You'll need to build and push this image
+        ports:
+        - containerPort: 3008
+        - containerPort: 8080
+        env:
+        - name: REBUILD
+          value: "0"  # Set this to ${REBUILD} in your deployment script
+---
+# horizon-game-server-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: horizon-game-server
+spec:
+  selector:
+    app: horizon-game-server
+  ports:
+    - name: port-3008
+      port: 3008
+      targetPort: 3008
+    - name: port-8080
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
+---
+# horizon-dashboard-api-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: horizon-dashboard-api
+spec:
+  replicas: 1  # Set this to ${DASHBOARD_API_REPLICAS} in your deployment script
+  selector:
+    matchLabels:
+      app: horizon-dashboard-api
+  template:
+    metadata:
+      labels:
+        app: horizon-dashboard-api
+    spec:
+      containers:
+      - name: horizon-dashboard-api
+        image: stars-beyond/sb-dashboard:latest
+        ports:
+        - containerPort: 3007
+        env:
+        - name: NODE_ENV
+          value: production
+---
+# horizon-dashboard-api-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: horizon-dashboard-api
+spec:
+  selector:
+    app: horizon-dashboard-api
+  ports:
+    - port: 3007
+      targetPort: 3007
+  type: ClusterIP
