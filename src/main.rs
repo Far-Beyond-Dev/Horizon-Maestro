@@ -1,13 +1,27 @@
-use std::fs;
+// use std::fs;
+// use horizon_data_types::Player;
 use serde_derive::{Deserialize, Serialize};
+use socketioxide::extract::SocketRef;
 use tokio::sync::oneshot;
 use colored::*;
 use std::error::Error;
 use std::fmt;
+use std::net::Ipv4Addr;
 
 mod api;
 mod system_api;
 mod docker_api;
+
+
+// Struct to keep track of host data
+#[derive(Clone)]
+struct GameServer {
+    socket: SocketRef,            // A ref to the host's socket, this is used for sending messages or gathering more detailed data about the host
+    ip: Ipv4Addr,                 // The IPV4 address of the host, among other things this is used for system repairs over ssh and for health checks
+    assigned_region: [i64; 3],    // This value is the RRO (Relative Region Offset) from the center of the world (0,0,0) these are only ever whole numbers
+    players_ids: Vec<String>,     // List of all online players connected to this host, commonly used when communicating cross-host
+}
+
 
 #[derive(Deserialize, Serialize, Clone)]
 struct Config {

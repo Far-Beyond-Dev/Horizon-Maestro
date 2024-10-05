@@ -61,7 +61,7 @@ async fn deploy_to_host(host: Host, config: Config) -> Result<(), MaestroError> 
             crate::docker_api::ensure_docker_installed_remote(&host).await?;
             crate::docker_api::deploy_remotely(&host, &config).await
         }
-    }4
+    }
 }
 
 /// Processes the results of deployments to all hosts.
