@@ -11,7 +11,7 @@ use std::net::Ipv4Addr;
 mod api;
 mod system_api;
 mod docker_api;
-
+mod deployment;
 
 // Struct to keep track of host data
 #[derive(Clone)]
