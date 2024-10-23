@@ -1,25 +1,39 @@
-version: '3'
+# compose.yml
+version: "3.8"
 
 services:
-  # This service will handle the Horizon game server itself
   horizon-game-server:
-    build:
-      context: .
-      target: final
-      args:
-        REBUILD: ${REBUILD:-0}
+    image: 127.0.0.1:5000/horizon-game-server:latest
     ports:
-      - "3008"
-      - "8080"
+      - target: 3000
+        published: 3000
+        mode: host
+      - target: 3001
+        published: 3001
+        mode: host
+    environment:
+      - RUST_LOG=info
+    networks:
+      - horizon-network
     deploy:
-      replicas: ${GAME_SERVER_REPLICAS:-1}
+      mode: replicated
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
 
-  # This service will handle the dashboard
-  #    horizon-dashboard-api:
-  #      image: stars-beyond/sb-dashboard:latest
-  #      ports:
-  #        - "3007"
-  #      environment:
-  #        NODE_ENV: production
-  #      deploy:
-  #        replicas: ${DASHBOARD_API_REPLICAS:-1}
+volumes:
+  memory-db-data:
+
+networks:
+  horizon-network:
+    driver: overlay
+    attachable: true
+
+secrets:
+  db_password:
+    external: true
