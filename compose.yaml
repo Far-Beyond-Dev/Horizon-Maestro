@@ -15,13 +15,11 @@ services:
       replicas: ${GAME_SERVER_REPLICAS:-1}
 
   # This service will handle the dashboard
-  horizon-dashboard-api:
-    image: stars-beyond/sb-dashboard:latest
-    ports:
-      - "3007"
-    environment:
-      NODE_ENV: production
-    deploy:
-      replicas: ${DASHBOARD_API_REPLICAS:-1}
-
-# The commented out section for the PostgreSQL database remains unchanged
+  #    horizon-dashboard-api:
+  #      image: stars-beyond/sb-dashboard:latest
+  #      ports:
+  #        - "3007"
+  #      environment:
+  #        NODE_ENV: production
+  #      deploy:
+  #        replicas: ${DASHBOARD_API_REPLICAS:-1}
