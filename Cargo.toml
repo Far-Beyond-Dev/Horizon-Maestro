@@ -27,4 +27,6 @@ axum = "0.7.5"
 horizon_data_types = "0.1.4"
 docker-api = "0.14.0"
 kube = "0.96.0"
+k8s-openapi = { version = "0.23.0", features = ["latest"] }
 openstack = "0.5.0"
+rusqlite = { version = "0.32.1", features = ["bundled"] }

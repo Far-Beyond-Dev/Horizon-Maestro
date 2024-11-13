@@ -9,8 +9,6 @@ use std::fmt;
 use std::net::Ipv4Addr;
 
 mod api;
-mod system_api;
-mod docker_api;
 mod deployment;
 
 // Struct to keep track of host data
@@ -29,6 +27,13 @@ struct Config {
     docker: DockerConfig,
     deployment: DeploymentConfig,
     cache: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+enum HostType {
+    GameServer,
+    Maestro,
+    MaestroTopLevel,
 }
 
 #[derive(Debug)]
@@ -85,7 +90,7 @@ const DASHBOARD_PORT: u16 = 3008;
 async fn main() -> Result<(), MaestroError> {
     println!("{}", "🎭 Starting Horizon Maestro".magenta().bold());
 
-    let config: Config = system_api::read_config("config.toml")?;
+    let config: Config = deployment::system_api::read_config("config.toml")?;
 
     let (_shutdown_tx, shutdown_rx) = oneshot::channel();
        
@@ -95,11 +100,11 @@ async fn main() -> Result<(), MaestroError> {
         }
     });
 
-    let deployment_results = system_api::deploy_to_all_hosts(&config).await;
+    let deployment_results = deployment::system_api::deploy_to_all_hosts(&config).await;
 
-    let (successful_deployments, total_deployments) = system_api::process_deployment_results(deployment_results);
+    let (successful_deployments, total_deployments) = deployment::system_api::process_deployment_results(deployment_results);
 
-    system_api::print_deployment_summary(&config, successful_deployments, total_deployments);
+    deployment::system_api::print_deployment_summary(&config, successful_deployments, total_deployments);
     
     println!("\n{}", "🔄 Application is running. Press Ctrl+C to stop.".yellow().bold());
     tokio::signal::ctrl_c().await.map_err(|e| MaestroError(format!("Failed to listen for Ctrl+C: {}", e)))?;

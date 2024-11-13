@@ -1,4 +1,4 @@
-use crate::{Config, Host, ContainerConfig, MaestroError};
+use crate::{Config, ContainerConfig, DockerConfig, Host, MaestroError};
 use tokio::process::Command;
 use futures::future::join_all;
 use colored::*;
@@ -42,7 +42,7 @@ pub async fn ensure_docker_installed_local() -> Result<(), MaestroError> {
 pub async fn ensure_docker_installed_remote(host: &Host) -> Result<(), MaestroError> {
     println!("{}", format!("🐳 Checking Docker installation on {}...", host.address).blue().bold());
 
-    let check_docker = crate::system_api::run_ssh_command("command -v docker || echo 'Docker not found'", host).await?;
+    let check_docker = crate::deployment::system_api::run_ssh_command("command -v docker || echo 'Docker not found'", host).await?;
 
     if check_docker.contains("Docker not found") {
         println!("{}", format!("⚠️  Docker is not installed on {}. Attempting to install...", host.address).yellow().bold());
@@ -58,7 +58,7 @@ pub async fn ensure_docker_installed_remote(host: &Host) -> Result<(), MaestroEr
 /// # Returns
 /// - `Ok(())` if Docker was successfully installed
 /// - `Err(MaestroError)` if there was an error during installation
-async fn install_docker_local() -> Result<(), MaestroError> {
+pub async fn install_docker_local() -> Result<(), MaestroError> {
     println!("{}", "📥 Downloading Docker installation script...".blue().bold());
     
     let curl_output = Command::new("curl")
@@ -100,7 +100,7 @@ async fn install_docker_local() -> Result<(), MaestroError> {
 /// # Returns
 /// - `Ok(())` if Docker was successfully installed
 /// - `Err(MaestroError)` if there was an error during installation
-async fn install_docker_remote(host: &Host) -> Result<(), MaestroError> {
+pub async fn install_docker_remote(host: &Host) -> Result<(), MaestroError> {
     println!("{}", format!("📥 Installing Docker on {}...", host.address).blue().bold());
 
     let install_command = r#"
@@ -110,7 +110,7 @@ async fn install_docker_remote(host: &Host) -> Result<(), MaestroError> {
         echo 'Docker installed successfully'
     "#;
     
-    let output = crate::system_api::run_ssh_command(install_command, host).await?;
+    let output = crate::deployment::system_api::run_ssh_command(install_command, host).await?;
 
     if output.contains("Docker installed successfully") {
         println!("{}", format!("✅ Docker installed successfully on {}", host.address).green().bold());
@@ -286,7 +286,7 @@ async fn deploy_container_remotely(host: &Host, container: &ContainerConfig, ins
     ];
 
     for cmd in docker_commands {
-        let output = crate::system_api::run_ssh_command(&cmd, host).await?;
+        let output = crate::deployment::system_api::run_ssh_command(&cmd, host).await?;
         println!("SSH OUTPUT | {}@{}:{} / $ {}", host.username, host.address, host.ssh_port.unwrap_or(22), cmd);
         for line in output.lines() {
             println!("SSH OUTPUT | {}", line);

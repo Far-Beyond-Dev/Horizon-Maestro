@@ -54,12 +54,12 @@ async fn deploy_to_host(host: Host, config: Config) -> Result<(), MaestroError> 
     println!("{}", format!("🚀 Starting deployment to {}", host.address).blue().bold());
     match host.address.as_str() {
         "localhost" => {
-            crate::docker_api::ensure_docker_installed_local().await?;
-            crate::docker_api::deploy_locally(&config).await
+            crate::deployment::docker::ensure_docker_installed_local().await?;
+            crate::deployment::docker::deploy_locally(&config).await
         },
         _ => {
-            crate::docker_api::ensure_docker_installed_remote(&host).await?;
-            crate::docker_api::deploy_remotely(&host, &config).await
+            crate::deployment::docker::ensure_docker_installed_remote(&host).await?;
+            crate::deployment::docker::deploy_remotely(&host, &config).await
         }
     }
 }
