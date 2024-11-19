@@ -12,7 +12,6 @@ use openstack as openstack_lib;
 use crate::{Config, ContainerConfig, DeploymentConfig, DockerConfig, Host, HostType, MaestroError, NpmConfig};
 use rusqlite::{params, Connection};
 
-
 pub mod docker;
 pub mod kube;
 pub mod openstack;
