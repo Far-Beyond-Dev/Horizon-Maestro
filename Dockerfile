@@ -6,8 +6,8 @@
 
 # Want to help us make this template better? Share your feedback here: https://forms.gle/ybq9Krt8jtBL3iCk7
 
-ARG RUST_VERSION=1.81.0
-ARG APP_NAME=Horizon-Maestro
+ARG RUST_VERSION=1.82.0
+ARG APP_NAME=horizon
 
 ################################################################################
 # Create a stage for building the application.
@@ -17,9 +17,7 @@ ARG APP_NAME
 WORKDIR /app
 
 # Install host build dependencies.
-RUN apk add --no-cache clang lld musl-dev git openssl-dev
-
-COPY ./config.toml /bin/config.toml
+RUN apk add --no-cache clang lld musl-dev git
 
 # Build the application.
 # Leverage a cache mount to /usr/local/cargo/registry/
@@ -30,6 +28,9 @@ COPY ./config.toml /bin/config.toml
 # source code into the container. Once built, copy the executable to an
 # output directory before the cache mounted /app/target is unmounted.
 RUN --mount=type=bind,source=src,target=src \
+    --mount=type=bind,source=plugin-api,target=plugin-api,readonly=false \
+    --mount=type=bind,source=plugins,target=plugins \
+    --mount=type=bind,source=config.yml,target=config.yml    \
     --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
     --mount=type=bind,source=Cargo.lock,target=Cargo.lock \
     --mount=type=cache,target=/app/target/ \
@@ -65,9 +66,6 @@ USER appuser
 
 # Copy the executable from the "build" stage.
 COPY --from=build /bin/server /bin/
-
-# Copy the executable from the "build" stage.
-COPY --from=build /bin/config.toml /
 
 # Expose the port that the application listens on.
 EXPOSE 3000
