@@ -7,7 +7,7 @@ name = "Horizon-Maestro"
 version = "0.1.0"
 dependencies = [
  "docker-api",
- "horizon_data_types",
+ "horizon_data_types 0.4.0",
  "horizon_logger",
  "libloading",
  "notify",
@@ -968,6 +968,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "horizon_data_types"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8f3c413e1051396fffb4da30445e4a29f6c8a6e06b4670dd1b20049266d9d42"
+dependencies = [
+ "bincode",
+ "nalgebra",
+ "serde",
+ "serde_json",
+ "socketioxide",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "horizon_logger"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1611,7 +1626,7 @@ dependencies = [
  "PebbleVault",
  "async-trait",
  "horizon-plugin-api",
- "horizon_data_types",
+ "horizon_data_types 0.3.0",
  "horizon_logger",
  "once_cell",
  "serde",
@@ -1668,7 +1683,7 @@ version = "0.3.0"
 dependencies = [
  "async-trait",
  "horizon-plugin-api",
- "horizon_data_types",
+ "horizon_data_types 0.3.0",
  "pathdiff",
  "pebblevault_plugin",
  "socketioxide",
@@ -2158,7 +2173,7 @@ name = "stars_beyond_plugin"
 version = "0.1.0"
 dependencies = [
  "horizon-plugin-api",
- "horizon_data_types",
+ "horizon_data_types 0.3.0",
  "socketioxide",
 ]
 
@@ -2220,7 +2235,7 @@ name = "test_plugin"
 version = "0.1.0"
 dependencies = [
  "horizon-plugin-api",
- "horizon_data_types",
+ "horizon_data_types 0.3.0",
  "socketioxide",
 ]
 

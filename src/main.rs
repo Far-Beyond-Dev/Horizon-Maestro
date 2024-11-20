@@ -17,7 +17,7 @@
 // - Message passing system for inter-thread communication
 // - Asynchronous event handling using Tokio runtime
 //
-// Authors: Tristan James Poland, Thiago M. R. Goulart, Michael Houston
+// Authors: Tristan James Poland
 // License: Apache-2.0
 //==============================================================================
 
@@ -72,7 +72,7 @@ struct ServerThreadPool {
     /// Ending index for this pool's server range
     end_index: usize,
     /// Thread-safe vector containing the game servers managed by this pool
-    servers: Arc<RwLock<Vec<GameServer>>>,
+    servers: Arc<RwLock<Vec<ChildServer>>>,
     /// Channel sender for sending messages to the pool's message handler
     sender: mpsc::Sender<ServerMessage>,
     /// Thread-safe logger instance for this pool
@@ -177,7 +177,7 @@ impl HorizonMasterServer {
                     socket.id.as_str());
 
                 let id = socket.id.as_str();
-                let server: GameServer = GameServer::new(socket.clone());
+                let server: ChildServer = ChildServer::new(SpatialPartition::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0,1.0,1.0)), socket.clone());
                 
                 // Initialize server-specific handlers
                 servers::init(socket.clone(), pool.servers.clone());
@@ -256,10 +256,10 @@ impl HorizonMasterServer {
             .any("/*", ServiceHandler::new(svc));
 
         // Start server on port 3000
-        match tokio::net::TcpListener::bind("0.0.0.0:3000").await {
+        match tokio::net::TcpListener::bind("0.0.0.0:3001").await {
             Ok(listener) => {
                 log_info!(self.logger, "SERVER", 
-                    "Master server listening on 0.0.0.0:3000");
+                    "Master server listening on 0.0.0.0:3001");
                 
                 if let Err(e) = serve(listener, app).await {
                     log_critical!(self.logger, "SERVER", "Server error: {}", e);
@@ -267,7 +267,7 @@ impl HorizonMasterServer {
             },
             Err(e) => {
                 log_critical!(self.logger, "SERVER", 
-                    "Failed to bind to port 3000: {}", e);
+                    "Failed to bind to port 3001: {}", e);
             }
         }
     }
