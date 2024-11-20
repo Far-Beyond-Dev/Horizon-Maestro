@@ -3,7 +3,7 @@ use std::fs;
 
 #[derive(Deserialize)]
 pub struct Config {
-    pub players_per_pool: usize,
+    pub servers_per_pool: usize,
     pub num_thread_pools: usize,
     pub log_level: String,
 }

@@ -1,19 +1,19 @@
 //==============================================================================
-// Horizon Game Server - Core Implementation
+// Horizon Master Server - Core Implementation
 //==============================================================================
-// A high-performance, multithreaded game server using Socket.IO for real-time 
-// communication. Features include:
+// A high-performance, multithreaded master server using Socket.IO for real-time 
+// communication between game servers. Features include:
 //
-// - Scalable thread pool architecture supporting up to 32,000 concurrent players
-// - Dynamic player connection management with automatic load balancing
+// - Scalable thread pool architecture supporting up to 32 child game servers
+// - Dynamic server connection management with automatic load balancing
 // - Integrated plugin system for extensible functionality
 // - Comprehensive logging and monitoring
 // - Real-time Socket.IO event handling
 // - Graceful error handling and connection management
 //
 // Structure:
-// - Player connections are distributed across multiple thread pools
-// - Each pool manages up to 1000 players independently
+// - Child server connections are distributed across multiple thread pools
+// - Each pool manages up to 10 game servers independently
 // - Message passing system for inter-thread communication
 // - Asynchronous event handling using Tokio runtime
 //
@@ -38,7 +38,7 @@ use serde::Deserialize;
 use std::fs;
 
 mod config;
-mod players;
+mod servers;
 mod splash;
 
 use config::Config;
@@ -55,7 +55,7 @@ static CONFIG: Lazy<config::Config> = Lazy::new(|| {
 
 static LOGGER: Lazy<HorizonLogger> = Lazy::new(|| {
     let logger = HorizonLogger::new();
-    log_info!(logger, "INIT", "Horizon logger initialized with level: {}", CONFIG.log_level);
+    log_info!(logger, "INIT", "Horizon master logger initialized with level: {}", CONFIG.log_level);
     logger
 });
 
@@ -63,73 +63,73 @@ static LOGGER: Lazy<HorizonLogger> = Lazy::new(|| {
 // Thread Pool Structure
 //------------------------------------------------------------------------------
 
-/// Represents a thread pool that manages a subset of connected players
+/// Represents a thread pool that manages a subset of connected game servers
 /// Uses Arc and RwLock for safe concurrent access across threads
 #[derive(Clone)]
-struct PlayerThreadPool {
-    /// Starting index for this pool's player range
+struct ServerThreadPool {
+    /// Starting index for this pool's server range
     start_index: usize,
-    /// Ending index for this pool's player range
+    /// Ending index for this pool's server range
     end_index: usize,
-    /// Thread-safe vector containing the players managed by this pool
-    players: Arc<RwLock<Vec<Player>>>,
+    /// Thread-safe vector containing the game servers managed by this pool
+    servers: Arc<RwLock<Vec<GameServer>>>,
     /// Channel sender for sending messages to the pool's message handler
-    sender: mpsc::Sender<PlayerMessage>,
+    sender: mpsc::Sender<ServerMessage>,
     /// Thread-safe logger instance for this pool
     logger: Arc<HorizonLogger>,
 }
 
-/// Messages that can be processed by the player thread pools
-enum PlayerMessage {
-    /// Message for adding a new player with their socket and initial data
-    NewPlayer(SocketRef, Value),
-    /// Message for removing a player using their UUID
-    RemovePlayer(Uuid),
+/// Messages that can be processed by the server thread pools
+enum ServerMessage {
+    /// Message for adding a new game server with its socket and initial data
+    NewServer(SocketRef, Value),
+    /// Message for removing a game server using their UUID
+    RemoveServer(Uuid),
 }
 
 //------------------------------------------------------------------------------
 // Main Server Structure
 //------------------------------------------------------------------------------
 
-/// Main server structure that manages multiple player thread pools
-/// Handles incoming connections and distributes them across available pools
+/// Main master server structure that manages multiple server thread pools
+/// Handles incoming connections from game servers and distributes them across available pools
 #[derive(Clone)]
-struct HorizonServer {
+struct HorizonMasterServer {
     // Config Values
-    players_per_pool: usize, // Number of players per pool
+    servers_per_pool: usize, // Number of game servers per pool
     num_thread_pools: usize, // Number of thread pools
 
     /// Vector of thread pools, wrapped in Arc for thread-safe sharing
-    thread_pools: Arc<Vec<Arc<PlayerThreadPool>>>,
+    thread_pools: Arc<Vec<Arc<ServerThreadPool>>>,
     /// Tokio runtime for handling async operations
     runtime: Arc<Runtime>,
     /// Server-wide logger instance
     logger: Arc<HorizonLogger>,
 }
 
-impl HorizonServer {
-    /// Creates a new instance of the Horizon Server
+impl HorizonMasterServer {
+    /// Creates a new instance of the Horizon Master Server
     /// Initializes the thread pools and sets up message handling for each
-    fn new(players_per_pool: usize, num_thread_pools: usize) -> Self {
+    fn new(servers_per_pool: usize, num_thread_pools: usize) -> Self {
         let runtime = Arc::new(Runtime::new().unwrap());
         let mut thread_pools = Vec::new();
         let logger = Arc::new(HorizonLogger::new());
 
-        log_info!(logger, "SERVER", "Initializing Horizon Server");
+        log_info!(logger, "SERVER", "Initializing Horizon Master Server");
         
         // Initialize thread pools
         for i in 0..num_thread_pools {
-            let start_index = i * players_per_pool;
-            let end_index = start_index + players_per_pool;
+            let start_index = i * servers_per_pool;
+            let end_index = start_index + servers_per_pool;
             
             // Create message channel for this pool
             let (sender, mut receiver) = mpsc::channel(100);
-            let players = Arc::new(RwLock::new(Vec::new()));
+            let servers = Arc::new(RwLock::new(Vec::new()));
             
-            let pool = Arc::new(PlayerThreadPool {
+            let pool = Arc::new(ServerThreadPool {
                 start_index,
                 end_index,
-                players: players.clone(),
+                servers: servers.clone(),
                 sender,
                 logger: logger.clone(),
             });
@@ -155,8 +155,8 @@ impl HorizonServer {
             thread_pools.push(pool);
         }
 
-        HorizonServer {
-            players_per_pool,
+        HorizonMasterServer {
+            servers_per_pool,
             num_thread_pools,
             thread_pools: Arc::new(thread_pools),
             runtime,
@@ -165,81 +165,77 @@ impl HorizonServer {
     }
 
     /// Handles incoming messages for a specific thread pool
-    /// Processes player connections and disconnections
-    async fn handle_message(msg: PlayerMessage, pool: &PlayerThreadPool) {
+    /// Processes game server connections and disconnections
+    async fn handle_message(msg: ServerMessage, pool: &ServerThreadPool) {
         match msg {
-            // Handle new player connection
-            PlayerMessage::NewPlayer(socket, data) => {
+            // Handle new game server connection
+            ServerMessage::NewServer(socket, data) => {
                 // Confirm connection to client
                 socket.emit("connected", &true).ok();
 
-                log_info!(pool.logger, "CONNECTION", "Player {} connected successfully", 
+                log_info!(pool.logger, "CONNECTION", "Game server {} connected successfully", 
                     socket.id.as_str());
 
                 let id = socket.id.as_str();
-                let player: Player = Player::new(socket.clone(), Uuid::new_v4());
+                let server: GameServer = GameServer::new(socket.clone());
                 
-                // Initialize player-specific handlers
-                players::init(socket.clone(), pool.players.clone());
+                // Initialize server-specific handlers
+                servers::init(socket.clone(), pool.servers.clone());
 
-                // Add player to pool
-                pool.players.write().unwrap().push(player.clone());
+                // Add server to pool
+                pool.servers.write().unwrap().push(server.clone());
 
-                log_debug!(pool.logger, "PLAYER", "Player {} (UUID: {}) added to pool", 
-                    id, player.id);
+                log_debug!(pool.logger, "SERVER", "Game server {} (UUID: {}) added to pool", 
+                    id, server.id);
                 log_debug!(pool.logger, "SOCKET", "Socket.IO namespace: {:?}, id: {:?}", 
                     socket.ns(), socket.id);
 
-                // Send initialization events to client
-                if let Err(e) = socket.emit("preplay", &true) {
-                    log_warn!(pool.logger, "EVENT", "Failed to emit preplay event: {}", e);
-                }
-                
-                if let Err(e) = socket.emit("beginplay", &true) {
-                    log_warn!(pool.logger, "EVENT", "Failed to emit beginplay event: {}", e);
+                // Send initialization events to game server
+                if let Err(e) = socket.emit("server_ready", &true) {
+                    log_warn!(pool.logger, "EVENT", "Failed to emit server_ready event: {}", e);
                 }
             },
-            // Handle player removal
-            PlayerMessage::RemovePlayer(player_id) => {
-                let mut players = pool.players.write().unwrap();
-                if let Some(pos) = players.iter().position(|p| p.id == player_id) {
-                    players.remove(pos);
-                    log_info!(pool.logger, "PLAYER", "Player {} removed from pool", player_id);
+            // Handle server removal
+            ServerMessage::RemoveServer(server_id) => {
+                let mut servers = pool.servers.write().unwrap();
+                if let Some(pos) = servers.iter().position(|s| s.id == server_id) {
+                    servers.remove(pos);
+                    log_info!(pool.logger, "SERVER", "Game server {} removed from pool", server_id);
                 } else {
-                    log_warn!(pool.logger, "PLAYER", "Failed to find player {} for removal", 
-                        player_id);
+                    log_warn!(pool.logger, "SERVER", "Failed to find game server {} for removal", 
+                        server_id);
                 }
             }
         }
     }
 
-    /// Handles new incoming socket connections
+    /// Handles new incoming socket connections from game servers
     /// Assigns the connection to the first available thread pool
     async fn handle_new_connection(&self, socket: SocketRef, data: Data<Value>) {
         match self.thread_pools.iter().find(|pool| {
-            let players = pool.players.read().unwrap();
-            players.len() < self.players_per_pool
+            let servers = pool.servers.read().unwrap();
+            servers.len() < self.servers_per_pool
         }) {
             Some(selected_pool) => {
                 log_info!(self.logger, "CONNECTION", 
-                    "Assigning connection {} to thread pool {}", 
+                    "Assigning game server {} to thread pool {}", 
                     socket.id.to_string(), 
-                    selected_pool.start_index / self.players_per_pool);
+                    selected_pool.start_index / self.servers_per_pool);
 
                 if let Err(e) = selected_pool.sender
-                    .send(PlayerMessage::NewPlayer(socket, data.0)).await {
+                    .send(ServerMessage::NewServer(socket, data.0)).await {
                     log_error!(self.logger, "CONNECTION", 
-                        "Failed to assign player to pool: {}", e);
+                        "Failed to assign game server to pool: {}", e);
                 }
             },
             None => {
                 log_critical!(self.logger, "CAPACITY", 
-                    "All thread pools are full! Cannot accept new connection");
+                    "All thread pools are full! Cannot accept new game server connection");
             }
         }
     }
 
-    /// Starts the server and begins listening for connections
+    /// Starts the master server and begins listening for game server connections
     /// Sets up Socket.IO and HTTP routing
     async fn start(self) {
         // Initialize Socket.IO service
@@ -263,7 +259,7 @@ impl HorizonServer {
         match tokio::net::TcpListener::bind("0.0.0.0:3000").await {
             Ok(listener) => {
                 log_info!(self.logger, "SERVER", 
-                    "Multithreaded server listening on 0.0.0.0:3000");
+                    "Master server listening on 0.0.0.0:3000");
                 
                 if let Err(e) = serve(listener, app).await {
                     log_critical!(self.logger, "SERVER", "Server error: {}", e);
@@ -289,21 +285,21 @@ async fn redirect_to_master_panel(_req: Request) -> Result<Response> {
     Ok(response)
 }
 
-/// Main entry point for the Horizon Server
+/// Main entry point for the Horizon Master Server
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let init_time = Instant::now();
-    let players_per_pool = CONFIG.players_per_pool;
+    let servers_per_pool = CONFIG.servers_per_pool;
     let num_thread_pools = CONFIG.num_thread_pools;
 
     // Initialize logging system
     horizon_logger::init();
     splash::splash();
-    log_info!(LOGGER, "STARTUP", "Horizon Server starting...");
+    log_info!(LOGGER, "STARTUP", "Horizon Master Server starting...");
 
     // Create and start server instance with configuration values
-    let server = HorizonServer::new(players_per_pool, num_thread_pools);
-    log_info!(LOGGER, "STARTUP", "Server startup completed in {:?}", init_time.elapsed());
+    let server = HorizonMasterServer::new(servers_per_pool, num_thread_pools);
+    log_info!(LOGGER, "STARTUP", "Master server startup completed in {:?}", init_time.elapsed());
     
     server.start().await;
     

@@ -1,3 +1,11 @@
+//-----------------------------------------------------------------------------
+// WARNING: This Code is Legacy and Will be Moved to the horizon_data_types  Rust Crate in the Future
+//
+//
+//
+//
+//
+
 use serde_json::{json, Value};
 use serde::Serialize;
 use horizon_logger::{HorizonLogger, log_info, log_debug, log_warn, log_error, log_critical, LogLevel};
