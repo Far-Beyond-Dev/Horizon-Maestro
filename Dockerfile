@@ -7,7 +7,7 @@
 # Want to help us make this template better? Share your feedback here: https://forms.gle/ybq9Krt8jtBL3iCk7
 
 ARG RUST_VERSION=1.82.0
-ARG APP_NAME=horizon
+ARG APP_NAME=Horizon-Maestro
 
 ################################################################################
 # Create a stage for building the application.
