@@ -1,2 +1,9 @@
 pub mod index;
 pub mod instances;
+pub mod models;
+pub mod app_manager;
+pub mod instance_routes;
+pub mod volume_routes;
+pub mod network_routes;
+pub mod image_routes;
+pub mod agent_routes;
